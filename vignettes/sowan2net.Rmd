@@ -10,7 +10,7 @@ geometry: margin=1in
 fontfamily: mathpazo
 fontsize: 11pt
 vignette: >
-  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteIndexEntry{sowan2net}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
