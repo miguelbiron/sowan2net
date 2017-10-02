@@ -1,0 +1,147 @@
+---
+title: "sowan2net: Inference on Network Edge Weights from Sums of Weights At the Nodes"
+author: 
+   - Miguel Biron^[Superintendency of Banks and Financial Institutions (SBIF), Santiago, Chile]
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    number_sections: yes
+geometry: margin=1in
+fontfamily: mathpazo
+fontsize: 11pt
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# Setup
+
+Consider an undirected weighted graph without loops $G = (V, E)$, with $|V| = n$. We assume that $G$ does not have isolated vertices, and that the weights are non-negative. Therefore, $G$ can be described by a weighted adjacency matrix $\mathbf{W}$ of size $n \times n$ with the following properties:
+$$
+\begin{aligned}
+W_{ij} &\geq 0, \> \forall i,j && \text{non-negativity} \\
+\sum_j W_{ij} &> 0, \> \forall i && \text{no isolated vertices}\\
+\sum_{ij} W_{ij} &= 1 && \text{normalized weights}
+\end{aligned}
+$$
+
+where $\boldsymbol{1}_n$ is a vector of ones of length $n$. The last property is without loss of generality, since because of the non-negativity we can always re-scale $\mathbf{W}$ by dividing it by $\sum_{ij} W_{ij}$.
+
+Now, suppose that we do not observe $\mathbf{W}$, but that instead we have $t=1...T$ noisy observations of the sums of the weights at each node
+$$
+S_{it} = \sum_jW_{ij}+\epsilon_{it}, \> \forall i,t
+$$
+
+We assume the noise is such that it reallocates weights but preserves non-negativity and the total amount of weight in $G$
+$$
+\begin{aligned}
+S_{it} &\geq 0, \> \forall i,t \\
+\sum_i S_{it} &= 1, \> \forall t
+\end{aligned}
+$$
+
+Given these observations, our aim is to find a weighted adjacency matrix $\mathbf{X}$ which is "close" to $\mathbf{W}$. Given that the graph is undirected and does not have loops, we know that $\mathbf{X}$ has 0's in the diagonal and it is symmetric. Thus, the number of free parameters will be equal to:
+$$
+m = m(n) = \frac{n(n-1)}{2}, \forall n \geq 2
+$$
+
+Clearly, even if there was not noise present in the data, the problem would be underdetermined (only $n$ linearly independent equations). Therefore, one has to keep in mind that there will be multiple possible solutions to this problem. Thus, we will be exploring the space of matrices $\mathbf{X}$ whose columns/row sums are consistent with the data:
+$$
+\mathbf{X}\boldsymbol{1}_n \approx S_t, \> \forall t
+$$
+
+where $S_t = (S_{1t},...,S_{nt})^T$ is a vector of length $n$. 
+
+Now, in order to make use of available optimization software, we focus instead on the vector $x = lt(\mathbf{X}) \in \mathbb{R}^m$, the lower triangle of $\mathbf{X}$. The vector $x$ is constructed stacking the columns of the lower triangle. We can recover the column sums of $\mathbf{X}$ by a linear operation on $x$, such that the condition becomes
+$$
+\mathbf{X}\boldsymbol{1}_n = \mathbf{C}x \approx S_t, \> \forall t
+$$
+
+The matrix $\mathbf{C}$ of size $n \times m$ can be constructed recursively as a function of the number of nodes $n$:
+$$
+\begin{aligned}
+\mathbf{C}_2 &=
+\begin{bmatrix}
+1 \\
+1
+\end{bmatrix} \\
+\mathbf{C}_{n+1} &=
+\begin{bmatrix}
+\boldsymbol{1}_{n}^T & \boldsymbol{0}_{m(n)}^T  \\
+\mathbf{I}_{n} & \mathbf{C}_{n}
+\end{bmatrix}, \forall n \geq 3
+\end{aligned}
+$$
+
+Next, we can simplify the condition about matching the data by stacking $T$ matrices $\mathbf{C}$ into a matrix $\mathbf{\bar{C}}$ of size $nT \times m$, and also stacking the data $S_t$ in a vector $S$ of length $nT$, yielding:
+$$
+\mathbf{\bar{C}}x \approx \boldsymbol{S}
+$$
+
+With these changes, the problem can be stated as a non-negative least-squares problem:
+$$
+\begin{aligned}
+\min_{x\in\mathbb{R}^m} &\frac{1}{2}\|\mathbf{\bar{C}}x - S\|^2 \\
+\text{s.t } &x_i \geq 0, \> \forall i=1...m
+\end{aligned}
+$$
+
+# Implementation
+
+The function `sowan_2_net` solves the optimization problem described in the last section, using a nonlinear solver implemented in package `nloptr`. It is designed to solve the problem multiple times (parameter `n_samples`), by starting at random initial points. This gives a simple way to explore the solution space. The user can then select the more likely solutions, based on subjective criteria like the sparsity of the resulting network.
+
+# Some properties of the solution
+
+\textbf{Property 1:} If the solution $\mathbf{X}$ occurs in the interior of the feasible set, then
+$$
+\boldsymbol{1}_n^T \mathbf{X} \boldsymbol{1}_n = \sum_{ij}X_{ij} = 1
+$$
+
+\textbf{Proof:} For simplicity, assume $T=1$. The case $T>1$ is solved similarly by stacking things.
+
+Also, let us first assume that the optimum does not occur at a boundary (we will later relax this assumption). Then, we know then that the Lagrange multipliers associated with the restriction of non-negativity will be equal to zero. Therefore, the first-order condition can be stated as
+$$
+\frac{dL}{dx} = \boldsymbol{0}_m = \mathbf{C}^T\mathbf{C}x - \mathbf{C}^TS \Leftrightarrow  \mathbf{C}^T[\mathbf{C}x - S]=\boldsymbol{0}_m
+$$
+
+If we can find a vector $a \in \mathbb{R}^m$ such that $\mathbf{C}a=\boldsymbol{1}_n$, then multiplying both sides on the left by $a^T$ would yield
+$$
+a^T\mathbf{C}^T(\mathbf{C}x - S)=\boldsymbol{0}_m \Leftrightarrow \boldsymbol{1}_n^T\mathbf{C}x = \boldsymbol{1}_n^TS = 1
+$$
+
+as needed. To find $a$, note that $\mathbf{C}$ has exactly $n-1$ 1's in each row (this can be shown inductively by using the recurrence for $\mathbf{C}$). Thus, with $a\triangleq \frac{1}{n-1}\boldsymbol{1}_m$ we obtain the desired result.
+
+\textbf{Comments:} Suppose that some of the non-negativity restrictions are active. The first order condition will then become
+$$
+\mathbf{C}^T[\mathbf{C}x - S]=\lambda
+$$
+
+If we simply pre-multiply by $a$, we will obtain
+$$
+\boldsymbol{1}_n^T\mathbf{C}x - 1 = a^T\lambda \neq 0
+$$
+
+because, by KKT conditions, there must be a set $Z\subset\{1...m\}$ such that
+$$
+x_z = 0 \> \wedge \> \lambda_z > 0, \> \forall z\in Z
+$$
+
+Therefore, we now need a vector $b$ such that
+$$
+\mathbf{C}b = \boldsymbol{1}_n \> \wedge \> \lambda^Tb = 0 \Leftrightarrow 
+\underbrace{
+\begin{bmatrix}
+\mathbf{C} \\
+\lambda^T
+\end{bmatrix}
+}_{\mathbf{C}'}
+b
+=
+\begin{pmatrix}
+\boldsymbol{1}_n \\
+0
+\end{pmatrix}
+$$
+
+If $rank(\mathbf{C}') = n+1$, then $b$ is guaranteed to exist. If not, then it is not trivial to find $b$, so it is not clear that the property would hold in that case.
