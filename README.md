@@ -116,10 +116,10 @@ print(fit)
     ## 10    10      4 1.056945e-13 1.000001 <dbl [10 x 10]>
     ## # ... with 190 more rows
 
-Let us plot 9 of the inferred networks selected at random.
+Let us plot 2 of the inferred networks selected at random.
 
 ``` r
-plot_list = lapply(fit[sample(1:n_samples, 9), "M"]$M, plot_network)
+plot_list = lapply(fit[sample(1:n_samples, 2), "M"]$M, plot_network)
 do.call("grid.arrange", plot_list)
 ```
 
