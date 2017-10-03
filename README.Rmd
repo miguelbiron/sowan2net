@@ -107,7 +107,7 @@ fit = sowan_2_net(
 )
 ```
 
-We can inspect the results
+We can inspect the results. Columns 2, 3 and 4 help diagnose the quality of the solution. When `status = 4`, we know that `nloptr` converged correctly. Additionally, we want the error (squared difference between the given sums of weights and the node sums of the inferred networks) to be as low as possible, and the sum of the components of the matrix equal to 1
 
 ```{r}
 print(fit)
