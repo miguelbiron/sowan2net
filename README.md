@@ -22,10 +22,10 @@ devtools::install_github('miguelbiron/sowan2net')
 Example
 -------
 
-We will apply the inference procedure to a random network. We start by defining some useful functions
+We will apply the inference procedure to a random network. We start by defining some useful functions.
 
 ``` r
-# function for generating random weighted adjacency matrix
+# a simple function for generating random weighted adjacency matrix
 rand_wam = function(n, s = 0.5){
   # arguments:
   #     - n: number of nodes
@@ -67,7 +67,7 @@ Next, we sample a network and create a `node_data` data frame. For simplicity, w
 ``` r
 set.seed(1313)
 n = 10
-tru_mat = rand_wam(n, s = 0.5)
+tru_mat = rand_wam(n)
 
 # node_data
 node_data = tibble::tibble(
@@ -116,41 +116,37 @@ print(fit)
     ## 10    10      4 1.056945e-13 1.000001 <dbl [10 x 10]>
     ## # ... with 190 more rows
 
-Let us plot 2 of the inferred networks selected at random.
+Let us plot 4 of the inferred networks selected at random.
 
 ``` r
-plot_list = lapply(fit[sample(1:n_samples, 2), "M"]$M, plot_network)
+plot_list = lapply(fit[sample(1:n_samples, n_plot_rand), "M"]$M, plot_network)
 do.call("grid.arrange", plot_list)
 ```
 
-![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-7-1.png)
+![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-8-1.png)
 
-An interesting way to classify the results is by their sparseness. Let us calculate the number of edges close to zero
+An interesting way to classify the solutions obtained is by their sparseness. Let us calculate the number of edges close to zero
 
 ``` r
 fit = fit %>%
   mutate(x_eq_0 = unlist(lapply(M, function(m, eps){sum(m < eps)}, eps = 5e-5)))
 ```
 
-Now, let us plot the networks with the highest number of edges close to zero.
+Now, let us plot one of the networks with the highest number of edges close to zero.
 
 ``` r
-indexes = which(max(fit$x_eq_0) == fit$x_eq_0)
-plot_list = lapply(fit[indexes, "M"]$M, plot_network)
-do.call("grid.arrange", plot_list)
-```
-
-![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-9-1.png)
-
-And these are the densest networks
-
-``` r
-indexes = which(min(fit$x_eq_0) == fit$x_eq_0)
-plot_list = lapply(fit[indexes, "M"]$M, plot_network)
-do.call("grid.arrange", plot_list)
+plot_network(fit$M[[which.max(fit$x_eq_0)]])
 ```
 
 ![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-10-1.png)
+
+And this is one of the densest solutions
+
+``` r
+plot_network(fit$M[[which.min(fit$x_eq_0)]])
+```
+
+![](README_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-11-1.png)
 
 To Do
 -----
